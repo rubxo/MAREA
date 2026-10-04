@@ -1,10 +1,11 @@
+import Feather from '@expo/vector-icons/Feather';
 import { Image } from 'expo-image';
 import { StyleSheet, View } from 'react-native';
 
 import { colors } from '@/theme/tokens';
 
 type AvatarProps = Readonly<{
-  uri: string;
+  uri: string | null;
   size?: number;
   highlighted?: boolean;
   accessibilityLabel: string;
@@ -23,13 +24,17 @@ export function Avatar({
         { width: size, height: size, borderRadius: size / 2 },
         highlighted && styles.highlighted,
       ]}>
-      <Image
-        source={{ uri }}
-        style={{ width: size - 6, height: size - 6, borderRadius: (size - 6) / 2 }}
-        contentFit="cover"
-        cachePolicy="memory-disk"
-        accessibilityLabel={accessibilityLabel}
-      />
+      {uri ? (
+        <Image
+          source={{ uri }}
+          style={{ width: size - 6, height: size - 6, borderRadius: (size - 6) / 2 }}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          accessibilityLabel={accessibilityLabel}
+        />
+      ) : (
+        <Feather name="user" size={Math.round(size * 0.42)} color={colors.mutedInk} />
+      )}
     </View>
   );
 }

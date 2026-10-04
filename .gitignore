@@ -10,3 +10,5 @@ dist/
 .DS_Store
 .superpowers/
 .worktrees/
+backend/supabase/.branches/
+backend/supabase/.temp/

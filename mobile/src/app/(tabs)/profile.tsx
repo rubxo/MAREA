@@ -1,11 +1,14 @@
 import Feather from '@expo/vector-icons/Feather';
 import { Image } from 'expo-image';
+import { router } from 'expo-router';
 import { FlatList, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
+import { EmptyState } from '@/components/EmptyState';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { demoGallery, demoUser } from '@/features/demo/demo-session';
+import { demoGallery } from '@/features/demo/demo-session';
+import { useAuthSession } from '@/features/auth/auth-session-provider';
 import { colors, radii, spacing } from '@/theme/tokens';
 
 function Stat({ value, label }: Readonly<{ value: number; label: string }>) {
@@ -18,31 +21,44 @@ function Stat({ value, label }: Readonly<{ value: number; label: string }>) {
 }
 
 export default function ProfileScreen() {
+  const { state } = useAuthSession();
   const { width } = useWindowDimensions();
   const cell = (width - 4) / 3;
+  const session = state.status === 'authenticated' ? state.session : null;
+  const profile = session?.profile;
+  const gallery = state.status === 'authenticated' && state.mode === 'demo' ? demoGallery : [];
+
+  if (!profile) {
+    return (
+      <SafeAreaView edges={['top']} style={styles.safeArea}>
+        <ScreenHeader title="Tu perfil" eyebrow="Marea" />
+        <EmptyState icon="user-x" title="Perfil no disponible" description="Vuelve a iniciar sesión para recuperar tu perfil." />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
-      <ScreenHeader title={demoUser.username} eyebrow="Tu perfil" actionIcon="settings" actionLabel="Configurar perfil" />
+      <ScreenHeader title={profile.username} eyebrow="Tu perfil" actionIcon="settings" actionLabel="Configurar perfil" onAction={() => router.push('/profile/edit')} />
       <FlatList
-        data={demoGallery}
+        data={gallery}
         numColumns={3}
         keyExtractor={(item) => item}
         ListHeaderComponent={
           <View>
             <View style={styles.profileRow}>
-              <Avatar uri={demoUser.avatarUrl} size={88} accessibilityLabel={`Foto de ${demoUser.displayName}`} highlighted />
+              <Avatar uri={profile.avatarUrl} size={88} accessibilityLabel={`Foto de ${profile.displayName}`} highlighted />
               <View style={styles.stats}>
-                <Stat value={demoUser.posts} label="Posts" />
-                <Stat value={demoUser.followers} label="Seguidores" />
-                <Stat value={demoUser.following} label="Siguiendo" />
+                <Stat value={profile.postCount} label="Posts" />
+                <Stat value={profile.followerCount} label="Seguidores" />
+                <Stat value={profile.followingCount} label="Siguiendo" />
               </View>
             </View>
             <View style={styles.bioBlock}>
-              <Text style={styles.name}>{demoUser.displayName}</Text>
-              <Text style={styles.bio}>{demoUser.bio}</Text>
+              <Text style={styles.name}>{profile.displayName}</Text>
+              <Text style={styles.bio}>{profile.bio || 'Tu historia empieza aquí.'}</Text>
             </View>
-            <Pressable accessibilityRole="button" style={({ pressed }) => [styles.edit, pressed && styles.pressed]}>
+            <Pressable accessibilityRole="button" onPress={() => router.push('/profile/edit')} style={({ pressed }) => [styles.edit, pressed && styles.pressed]}>
               <Feather name="edit-3" size={16} color={colors.ink} />
               <Text style={styles.editText}>Editar perfil</Text>
             </Pressable>
@@ -50,6 +66,9 @@ export default function ProfileScreen() {
               <Feather name="grid" size={18} color={colors.ink} />
               <Text style={styles.galleryTitle}>Publicaciones</Text>
             </View>
+            {gallery.length === 0 ? (
+              <EmptyState icon="camera" title="Aún no hay publicaciones" description="Tu primera foto aparecerá aquí cuando la compartas." />
+            ) : null}
           </View>
         }
         renderItem={({ item }) => (

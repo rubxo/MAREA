@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(28);
+select plan(29);
 
 -- Stable identities keep policy tests readable and reproducible.
 insert into auth.users (id, email)
@@ -12,12 +12,28 @@ values
   ('10000000-0000-0000-0000-000000000003', 'sol@marea.test'),
   ('10000000-0000-0000-0000-000000000004', 'teo@marea.test');
 
+select results_eq(
+  $$select count(*) from public.profiles
+    where id in (
+      '10000000-0000-0000-0000-000000000001'::uuid,
+      '10000000-0000-0000-0000-000000000002'::uuid,
+      '10000000-0000-0000-0000-000000000003'::uuid,
+      '10000000-0000-0000-0000-000000000004'::uuid
+    )$$,
+  array[4::bigint],
+  'auth signup creates a profile row before email confirmation'
+);
+
 insert into public.profiles (id, username, display_name, is_private)
 values
   ('10000000-0000-0000-0000-000000000001', 'luna', 'Luna Márquez', false),
   ('10000000-0000-0000-0000-000000000002', 'nico', 'Nico Ríos', true),
   ('10000000-0000-0000-0000-000000000003', 'sol', 'Sol Vega', false),
-  ('10000000-0000-0000-0000-000000000004', 'teo', 'Teo Mora', false);
+  ('10000000-0000-0000-0000-000000000004', 'teo', 'Teo Mora', false)
+on conflict (id) do update
+set username = excluded.username,
+    display_name = excluded.display_name,
+    is_private = excluded.is_private;
 
 insert into public.follows (follower_id, following_id)
 values ('10000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002');

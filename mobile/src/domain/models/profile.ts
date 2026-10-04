@@ -16,3 +16,10 @@ export type Profile = ProfileSummary &
     postCount: number;
     relationship: 'self' | 'none' | 'requested' | 'following';
   }>;
+
+export type FollowRequest = Readonly<{
+  id: string;
+  requester: ProfileSummary;
+  createdAt: string;
+  status: 'pending' | 'accepted' | 'rejected';
+}>;

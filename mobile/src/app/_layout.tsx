@@ -5,9 +5,42 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { View } from 'react-native';
 
+import { AuthSessionProvider, useAuthSession } from '@/features/auth/auth-session-provider';
 import { colors } from '@/theme/tokens';
 
 void SplashScreen.preventAutoHideAsync();
+
+function RootNavigator({ fontsLoaded }: Readonly<{ fontsLoaded: boolean }>) {
+  const { state } = useAuthSession();
+  const ready = fontsLoaded && state.status !== 'booting';
+
+  useEffect(() => {
+    if (ready) void SplashScreen.hideAsync();
+  }, [ready]);
+
+  if (!ready) return <View style={{ flex: 1, backgroundColor: colors.paper }} />;
+
+  const authenticated = state.status === 'authenticated';
+
+  return (
+    <>
+      <StatusBar style="dark" />
+      <Stack
+        screenOptions={{
+          contentStyle: { backgroundColor: colors.paper },
+          headerShown: false,
+        }}>
+        <Stack.Protected guard={authenticated}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="profile" />
+        </Stack.Protected>
+        <Stack.Protected guard={!authenticated}>
+          <Stack.Screen name="(auth)" />
+        </Stack.Protected>
+      </Stack>
+    </>
+  );
+}
 
 export default function RootLayout() {
   const [loaded] = useFonts({
@@ -18,22 +51,9 @@ export default function RootLayout() {
     Inter_800ExtraBold: require('@expo-google-fonts/inter/800ExtraBold/Inter_800ExtraBold.ttf'),
   });
 
-  useEffect(() => {
-    if (loaded) void SplashScreen.hideAsync();
-  }, [loaded]);
-
-  if (!loaded) return <View style={{ flex: 1, backgroundColor: colors.paper }} />;
-
   return (
-    <>
-      <StatusBar style="dark" />
-      <Stack
-        screenOptions={{
-          contentStyle: { backgroundColor: colors.paper },
-          headerShown: false,
-        }}>
-        <Stack.Screen name="(tabs)" />
-      </Stack>
-    </>
+    <AuthSessionProvider>
+      <RootNavigator fontsLoaded={loaded} />
+    </AuthSessionProvider>
   );
 }
