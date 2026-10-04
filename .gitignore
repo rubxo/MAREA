@@ -1,0 +1,12 @@
+node_modules/
+mobile/node_modules/
+mobile/.expo/
+.env
+.env.*
+!.env.example
+coverage/
+dist/
+*.log
+.DS_Store
+.superpowers/
+.worktrees/

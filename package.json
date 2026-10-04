@@ -1,0 +1,12 @@
+{
+  "name": "marea-social",
+  "private": true,
+  "scripts": {
+    "install:all": "npm --prefix mobile install",
+    "start": "npm --prefix mobile run start",
+    "test": "npm --prefix mobile run test",
+    "typecheck": "npm --prefix mobile run typecheck",
+    "lint": "npm --prefix mobile run lint",
+    "doctor": "npm --prefix mobile run doctor"
+  }
+}
