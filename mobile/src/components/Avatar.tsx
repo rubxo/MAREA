@@ -1,8 +1,9 @@
 import Feather from '@expo/vector-icons/Feather';
-import { Image } from 'expo-image';
 import { StyleSheet, View } from 'react-native';
 
 import { colors } from '@/theme/tokens';
+
+import { CachedImage } from './CachedImage';
 
 type AvatarProps = Readonly<{
   uri: string | null;
@@ -25,11 +26,10 @@ export function Avatar({
         highlighted && styles.highlighted,
       ]}>
       {uri ? (
-        <Image
-          source={{ uri }}
+        <CachedImage
+          uri={uri}
           style={{ width: size - 6, height: size - 6, borderRadius: (size - 6) / 2 }}
           contentFit="cover"
-          cachePolicy="memory-disk"
           accessibilityLabel={accessibilityLabel}
         />
       ) : (

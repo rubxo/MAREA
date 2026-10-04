@@ -1,9 +1,9 @@
 import Feather from '@expo/vector-icons/Feather';
-import { Image } from 'expo-image';
 import { FlatList, StyleSheet, TextInput, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { CachedImage } from '@/components/CachedImage';
 import { demoGallery } from '@/features/demo/demo-session';
 import { colors, radii, spacing } from '@/theme/tokens';
 
@@ -28,11 +28,10 @@ export default function ExploreScreen() {
         numColumns={3}
         keyExtractor={(item) => item}
         renderItem={({ item }) => (
-          <Image
-            source={{ uri: item }}
+          <CachedImage
+            uri={item}
             style={{ height: cell, width: cell, margin: 0.5 }}
             contentFit="cover"
-            cachePolicy="memory-disk"
             accessibilityLabel="Fotografía en Explorar"
           />
         )}

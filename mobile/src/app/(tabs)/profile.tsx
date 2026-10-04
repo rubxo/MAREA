@@ -1,10 +1,10 @@
 import Feather from '@expo/vector-icons/Feather';
-import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { FlatList, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
+import { CachedImage } from '@/components/CachedImage';
 import { EmptyState } from '@/components/EmptyState';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { demoGallery } from '@/features/demo/demo-session';
@@ -72,7 +72,7 @@ export default function ProfileScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <Image source={{ uri: item }} style={{ height: cell, width: cell, margin: 0.5 }} contentFit="cover" cachePolicy="memory-disk" accessibilityLabel="Publicación del perfil" />
+          <CachedImage uri={item} style={{ height: cell, width: cell, margin: 0.5 }} contentFit="cover" accessibilityLabel="Publicación del perfil" />
         )}
       />
     </SafeAreaView>

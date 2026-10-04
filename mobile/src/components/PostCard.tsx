@@ -1,5 +1,4 @@
 import Feather from '@expo/vector-icons/Feather';
-import { Image } from 'expo-image';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
@@ -7,6 +6,7 @@ import { DemoPost } from '@/features/demo/demo-session';
 import { colors, spacing } from '@/theme/tokens';
 
 import { Avatar } from './Avatar';
+import { CachedImage } from './CachedImage';
 
 type PostCardProps = Readonly<{ post: DemoPost }>;
 
@@ -53,12 +53,11 @@ export function PostCard({ post }: PostCardProps) {
         <ActionIcon name="more-horizontal" label="Más opciones" />
       </View>
 
-      <Image
-        source={{ uri: post.imageUrl }}
+      <CachedImage
+        uri={post.imageUrl}
         style={{ width, height: Math.min(width * 1.12, 540) }}
         contentFit="cover"
         transition={180}
-        cachePolicy="memory-disk"
         accessibilityLabel={`Publicación de ${post.displayName}: ${post.caption}`}
       />
 
