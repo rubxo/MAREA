@@ -2,11 +2,15 @@
   "name": "marea-social",
   "private": true,
   "scripts": {
+    "postinstall": "npm --prefix mobile install",
+    "backend:start": "npx supabase@2.119.0 --workdir backend start",
+    "backend:migrate": "npx supabase@2.119.0 --workdir backend migration up",
+    "backend:test": "npx supabase@2.119.0 --workdir backend test db",
     "install:all": "npm --prefix mobile install",
     "start": "npm --prefix mobile run start",
-    "test": "npm --prefix mobile run test",
+    "test": "npm --prefix mobile run test --",
     "typecheck": "npm --prefix mobile run typecheck",
-    "lint": "npm --prefix mobile run lint",
+    "lint": "npm --prefix mobile run lint --",
     "doctor": "npm --prefix mobile run doctor"
   }
 }

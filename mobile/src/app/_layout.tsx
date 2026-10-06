@@ -7,6 +7,9 @@ import { View } from 'react-native';
 
 import { AuthSessionProvider, useAuthSession } from '@/features/auth/auth-session-provider';
 import { colors } from '@/theme/tokens';
+import { SyncStatus } from '@/features/sync/SyncStatus';
+import { appEnvironment } from '@/core/config/env';
+import { EmptyState } from '@/components/EmptyState';
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -21,29 +24,37 @@ function RootNavigator({ fontsLoaded }: Readonly<{ fontsLoaded: boolean }>) {
   if (!ready) return <View style={{ flex: 1, backgroundColor: colors.paper }} />;
 
   const authenticated = state.status === 'authenticated';
+  if (appEnvironment.mode === 'unconfigured') return <View style={{flex:1,justifyContent:'center',backgroundColor:colors.paper}}><EmptyState icon="settings" title="Conecta Marea" description="Configura EXPO_PUBLIC_SUPABASE_URL y EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY en mobile/.env y reinicia Expo. La aplicación necesita tu backend para comenzar." /></View>;
 
   return (
     <>
       <StatusBar style="dark" />
+      <SyncStatus />
       <Stack
+        initialRouteName={authenticated ? '(tabs)' : '(auth)'}
         screenOptions={{
           contentStyle: { backgroundColor: colors.paper },
           headerShown: false,
         }}>
-        <Stack.Protected guard={authenticated}>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="profile" />
-        </Stack.Protected>
         <Stack.Protected guard={!authenticated}>
           <Stack.Screen name="(auth)" />
         </Stack.Protected>
+        <Stack.Protected guard={authenticated}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="profile" />
+          <Stack.Screen name="post" />
+          <Stack.Screen name="messages" />
+          <Stack.Screen name="story" options={{presentation:'fullScreenModal'}} />
+        </Stack.Protected>
+        {/* Recovery stays reachable during OTP session creation, but is never the fallback. */}
+        <Stack.Screen name="recovery" />
       </Stack>
     </>
   );
 }
 
 export default function RootLayout() {
-  const [loaded] = useFonts({
+  const [loaded, fontError] = useFonts({
     Inter_400Regular: require('@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf'),
     Inter_500Medium: require('@expo-google-fonts/inter/500Medium/Inter_500Medium.ttf'),
     Inter_600SemiBold: require('@expo-google-fonts/inter/600SemiBold/Inter_600SemiBold.ttf'),
@@ -53,7 +64,7 @@ export default function RootLayout() {
 
   return (
     <AuthSessionProvider>
-      <RootNavigator fontsLoaded={loaded} />
+      <RootNavigator fontsLoaded={loaded || Boolean(fontError)} />
     </AuthSessionProvider>
   );
 }

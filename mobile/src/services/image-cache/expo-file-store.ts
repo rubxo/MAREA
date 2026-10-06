@@ -1,5 +1,5 @@
-import { CryptoDigestAlgorithm, digestStringAsync } from 'expo-crypto';
-import { Directory, File, Paths } from 'expo-file-system';
+import { CryptoDigestAlgorithm, digestStringAsync, randomUUID } from 'expo-crypto';
+import { Directory, File, FileMode, Paths } from 'expo-file-system';
 
 import { LocalDatabase, openLocalDatabase } from '@/data/local/database';
 
@@ -20,6 +20,17 @@ export class ExpoImageFileStore implements ImageDiskStore {
 
   private ensureDirectory(): void {
     this.directory.create({ intermediates: true, idempotent: true });
+  }
+
+  async readMemory(file: CachedImageFile): Promise<string> {
+    const cached = new File(file.uri);
+    const handle = cached.open(FileMode.ReadOnly);
+    let bytes: Uint8Array;
+    try { bytes = handle.readBytes(12); } finally { handle.close(); }
+    const mime = bytes[0] === 137 && bytes[1] === 80 ? 'image/png'
+      : bytes[0] === 82 && bytes[1] === 73 && bytes[8] === 87 && bytes[9] === 69 ? 'image/webp'
+        : bytes[0] === 71 && bytes[1] === 73 ? 'image/gif' : 'image/jpeg';
+    return 'data:' + mime + ';base64,' + await cached.base64();
   }
 
   private async filename(url: string): Promise<string> {
@@ -75,7 +86,8 @@ export class ExpoImageFileStore implements ImageDiskStore {
   async download(url: string, signal: AbortSignal): Promise<CachedImageFile> {
     this.ensureDirectory();
     const name = await this.filename(url);
-    const temporary = new File(this.directory, `${name}.tmp`);
+    // A cancelled transfer may still be cleaning up when the same URL is requested again.
+    const temporary = new File(this.directory, `${name}.${randomUUID()}.tmp`);
     const destination = new File(this.directory, name);
     this.safeDelete(temporary);
 
@@ -117,12 +129,12 @@ export class ExpoImageFileStore implements ImageDiskStore {
     );
   }
 
-  prune(maxBytes: number, protectedUris: ReadonlySet<string>): Promise<void> {
-    this.pruneQueue = this.pruneQueue.then(() => this.performPrune(maxBytes, protectedUris));
+  prune(maxBytes: number, isProtected: (file: CachedImageFile) => boolean): Promise<void> {
+    this.pruneQueue = this.pruneQueue.catch(() => {}).then(() => this.performPrune(maxBytes, isProtected));
     return this.pruneQueue;
   }
 
-  private async performPrune(maxBytes: number, protectedUris: ReadonlySet<string>): Promise<void> {
+  private async performPrune(maxBytes: number, isProtected: (file: CachedImageFile) => boolean): Promise<void> {
     const database = await this.database;
     const rows = await database.getAllAsync<ImageCacheRow>(
       `SELECT remote_url AS url, local_uri, byte_size AS size,
@@ -133,7 +145,8 @@ export class ExpoImageFileStore implements ImageDiskStore {
 
     for (const row of rows) {
       if (total <= maxBytes) break;
-      if (protectedUris.has(row.local_uri)) continue;
+      // Evaluate current leases immediately before synchronous deletion, not a queued snapshot.
+      if (isProtected({ url: row.url, uri: row.local_uri, size: row.size, lastAccess: row.last_access })) continue;
       this.safeDelete(new File(row.local_uri));
       await database.runAsync('DELETE FROM image_cache WHERE remote_url = ?', row.url);
       total -= row.size;

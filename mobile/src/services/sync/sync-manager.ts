@@ -31,7 +31,7 @@ export class SyncManager {
           await this.queue.complete(operation.id);
         } catch (error) {
           await this.queue.fail(operation.id, error);
-          break;
+          throw error;
         }
         operation = await this.queue.leaseNext();
       }

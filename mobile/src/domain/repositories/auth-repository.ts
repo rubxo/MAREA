@@ -23,6 +23,7 @@ export type UpdateProfileInput = Readonly<{
   displayName: string;
   bio: string;
   isPrivate: boolean;
+  avatarPath?: string;
 }>;
 
 export interface AuthRepository {

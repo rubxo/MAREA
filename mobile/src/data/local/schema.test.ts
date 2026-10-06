@@ -14,9 +14,9 @@ class FakeExecutor implements SqlExecutor {
     this.executed.push(sql);
   }
 
-  async withExclusiveTransactionAsync(task: () => Promise<void>): Promise<void> {
+  async withExclusiveTransactionAsync(task: (transaction: Pick<SqlExecutor, 'execAsync'>) => Promise<void>): Promise<void> {
     this.transactions += 1;
-    await task();
+    await task(this);
   }
 }
 

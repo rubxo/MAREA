@@ -1,5 +1,5 @@
 import { Image, ImageProps } from 'expo-image';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { getImageCacheManager } from '@/services/image-cache/image-cache';
@@ -11,20 +11,20 @@ type CachedImageProps = Omit<ImageProps, 'source' | 'cachePolicy'> &
     uri: string;
   }>;
 
-export function CachedImage({ uri, style, ...props }: CachedImageProps) {
-  const [localUri, setLocalUri] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
+export function CachedImage({ uri, style, onError, ...props }: CachedImageProps) {
+  const [result, setResult] = useState<{ source: string; localUri: string | null; failed: boolean } | null>(null);
+  const isLocal = uri.startsWith('file:') || uri.startsWith('content:');
+  const localUri = isLocal ? uri : result?.source === uri ? result.localUri : null;
+  const failed = result?.source === uri && result.failed;
+  const onErrorRef = useRef(onError);
+  useEffect(() => { onErrorRef.current = onError; }, [onError]);
 
   useEffect(() => {
     const controller = new AbortController();
     let lease: ImageLease | undefined;
-    setTimeout(() => {
-      if (!controller.signal.aborted) {
-        setLocalUri(null);
-        setFailed(false);
-      }
-    }, 0);
-
+    if (uri.startsWith('file:') || uri.startsWith('content:')) {
+      return () => controller.abort();
+    }
     void getImageCacheManager()
       .acquire(uri, controller.signal)
       .then((resolvedLease) => {
@@ -33,11 +33,11 @@ export function CachedImage({ uri, style, ...props }: CachedImageProps) {
           return;
         }
         lease = resolvedLease;
-        setLocalUri(resolvedLease.uri);
+        setResult({ source: uri, localUri: resolvedLease.uri, failed: false });
       })
       .catch((error: unknown) => {
         if (error instanceof Error && error.name === 'AbortError') return;
-        if (!controller.signal.aborted) setFailed(true);
+        if (!controller.signal.aborted) { setResult({ source: uri, localUri: null, failed: true }); onErrorRef.current?.({ error: error instanceof Error ? error.message : 'No se pudo cargar la imagen' }); }
       });
 
     return () => {
@@ -57,6 +57,7 @@ export function CachedImage({ uri, style, ...props }: CachedImageProps) {
   return (
     <Image
       {...props}
+      onError={onError}
       source={{ uri: localUri }}
       style={style}
       cachePolicy="none"

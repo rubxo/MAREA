@@ -11,6 +11,7 @@ function file(url: string, suffix = 'jpg'): CachedImageFile {
 function createStore(overrides: Partial<ImageDiskStore> = {}): jest.Mocked<ImageDiskStore> {
   return {
     recover: jest.fn().mockResolvedValue(undefined),
+    readMemory: jest.fn().mockResolvedValue('data:image/jpeg;base64,cGhvdG8='),
     find: jest.fn().mockResolvedValue(null),
     download: jest.fn().mockImplementation(async (url) => file(url)),
     touch: jest.fn().mockResolvedValue(undefined),
@@ -28,6 +29,33 @@ async function waitFor(check: () => boolean): Promise<void> {
 }
 
 describe('ImageCacheManager', () => {
+  it('does not start work for an already cancelled consumer', async () => {
+    const store = createStore();
+    const controller = new AbortController();
+    controller.abort();
+    await expect(new ImageCacheManager(store).acquire('https://marea.test/cancel.jpg', controller.signal))
+      .rejects.toMatchObject({ name: 'AbortError' });
+    expect(store.download).not.toHaveBeenCalled();
+  });
+
+  it('keeps a shared request alive when only one consumer cancels', async () => {
+    let finish: (() => void) | undefined;
+    const store = createStore({ download: jest.fn().mockImplementation(url =>
+      new Promise<CachedImageFile>(resolve => { finish = () => resolve(file(url)); })) });
+    const manager = new ImageCacheManager(store);
+    const controller = new AbortController();
+    const first = manager.acquire('https://marea.test/shared.jpg', controller.signal);
+    const second = manager.acquire('https://marea.test/shared.jpg');
+    await waitFor(() => Boolean(finish));
+    controller.abort();
+    await expect(first).rejects.toMatchObject({ name: 'AbortError' });
+    expect(store.download.mock.calls[0]?.[1].aborted).toBe(false);
+    finish?.();
+    const lease = await second;
+    lease.release();
+    expect(store.download).toHaveBeenCalledTimes(1);
+  });
+
   it('resolves RAM, disk and network in that order', async () => {
     const diskHit = file('https://marea.test/disk.jpg', 'disk.jpg');
     const store = createStore({ find: jest.fn().mockResolvedValueOnce(diskHit).mockResolvedValue(null) });
@@ -42,7 +70,8 @@ describe('ImageCacheManager', () => {
 
     expect(store.find).toHaveBeenCalledTimes(2);
     expect(store.download).toHaveBeenCalledTimes(1);
-    expect(network.uri).toContain('file:///cache/');
+    expect(network.uri).toBe('data:image/jpeg;base64,cGhvdG8=');
+    expect(store.readMemory).toHaveBeenCalledTimes(2);
   });
 
   it('deduplicates simultaneous requests for the same URL', async () => {

@@ -29,6 +29,12 @@ export function toAppError(error: RemoteErrorLike): AppError {
   if (error.code === '23505' || normalized.includes('duplicate')) {
     return new AppError('CONFLICT', 'Ese nombre de usuario ya está en uso.');
   }
+  if (error.status === 422 && normalized.includes('already registered')) {
+    return new AppError('CONFLICT', 'Ese correo ya está registrado. Inicia sesión o recupera tu contraseña.');
+  }
+  if (error.status === 422) {
+    return new AppError('VALIDATION', 'No pudimos crear la cuenta con esos datos. Revisa el correo, usuario y contraseña.');
+  }
   if (error.status === 401) return new AppError('AUTH_REQUIRED', 'Tu sesión expiró.');
   if (error.status === 403 || error.code === '42501') {
     return new AppError('FORBIDDEN', 'No tienes permiso para realizar esta acción.');

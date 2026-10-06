@@ -15,6 +15,7 @@ function tabIcon(name: TabIconName) {
 export default function TabsLayout() {
   return (
     <Tabs
+      initialRouteName="(feed)"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.coral,
@@ -32,23 +33,23 @@ export default function TabsLayout() {
         },
       }}>
       <Tabs.Screen
-        name="index"
+        name="(feed)"
         options={{ title: 'Inicio', tabBarIcon: tabIcon('home') }}
       />
       <Tabs.Screen
-        name="explore"
+        name="(explore)"
         options={{ title: 'Explorar', tabBarIcon: tabIcon('search') }}
       />
       <Tabs.Screen
-        name="create"
+        name="(create)"
         options={{ title: 'Crear', tabBarIcon: tabIcon('plus-square') }}
       />
       <Tabs.Screen
-        name="activity"
+        name="(activity)"
         options={{ title: 'Actividad', tabBarIcon: tabIcon('heart') }}
       />
       <Tabs.Screen
-        name="profile"
+        name="(profile)"
         options={{ title: 'Perfil', tabBarIcon: tabIcon('user') }}
       />
     </Tabs>

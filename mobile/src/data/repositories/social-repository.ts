@@ -98,11 +98,7 @@ export class SupabaseSocialRepository implements SocialRepository {
     if (authError) throw toAppError(authError);
     if (!authData.user) throw new AppError('AUTH_REQUIRED', 'Debes iniciar sesión.');
 
-    const { error } = await this.client
-      .from('follows')
-      .delete()
-      .eq('follower_id', authData.user.id)
-      .eq('following_id', profileId);
+    const { error } = await this.client.rpc('cancel_follow', {target_user_id: profileId});
     if (error) throw toAppError(error);
   }
 

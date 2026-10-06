@@ -18,8 +18,8 @@ describe('getAppEnvironment', () => {
     {},
     { EXPO_PUBLIC_SUPABASE_URL: 'https://demo.supabase.co' },
     { EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_demo' },
-  ])('falls back to demo mode for incomplete public configuration', (source) => {
-    expect(getAppEnvironment(source)).toEqual({ mode: 'demo' });
+  ])('requires configuration instead of a simulated session', (source) => {
+    expect(getAppEnvironment(source)).toEqual({ mode: 'unconfigured' });
   });
 
   it('never exposes an administrative key', () => {

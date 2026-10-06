@@ -9,11 +9,10 @@ const remoteSession: AuthSession = {
 };
 
 describe('resolveInitialAuthState', () => {
-  it('creates an explicit demo session when remote credentials are absent', () => {
-    expect(resolveInitialAuthState({ mode: 'demo' }, null)).toMatchObject({
-      status: 'authenticated',
-      mode: 'demo',
-      session: { userId: 'user-valeria', profile: { username: 'valeria.m' } },
+  it('never authenticates without a configured backend', () => {
+    expect(resolveInitialAuthState({ mode: 'unconfigured' }, null)).toMatchObject({
+      status: 'anonymous',
+      mode: 'unconfigured',
     });
   });
 

@@ -1,6 +1,6 @@
 import Feather from '@expo/vector-icons/Feather';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -8,41 +8,77 @@ import { colors, radii, spacing } from '@/theme/tokens';
 import { FormField, FormMessage, PrimaryButton } from '@/features/auth/AuthScaffold';
 import { useAuthSession } from '@/features/auth/auth-session-provider';
 import { getErrorMessage } from '@/features/auth/error-message';
+import { Avatar } from '@/components/Avatar';
+import { pickPhoto } from '@/services/media/pick-photo';
+import { uploadPhoto } from '@/services/media/upload-photo';
+import { randomUUID } from 'expo-crypto';
 
 const usernamePattern = /^[a-z0-9_]{3,24}$/;
+type Progress = 'idle' | 'preparing' | 'uploading' | 'saving' | 'signing-out';
 
 export default function EditProfileScreen() {
   const { state, updateProfile, signOut } = useAuthSession();
   const profile = state.status === 'authenticated' ? state.session.profile : null;
-  const isDemo = state.status === 'authenticated' && state.mode === 'demo';
   const [username, setUsername] = useState(profile?.username ?? '');
   const [displayName, setDisplayName] = useState(profile?.displayName ?? '');
   const [bio, setBio] = useState(profile?.bio ?? '');
   const [isPrivate, setIsPrivate] = useState(profile?.isPrivate ?? false);
-  const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<Progress>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [avatar, setAvatar] = useState<{uri:string}|null>(null);
+  const operationInProgress = useRef(false);
 
   const valid = usernamePattern.test(username.trim().toLowerCase()) && displayName.trim().length > 0 && bio.length <= 160;
+  const loading = progress !== 'idle';
 
   async function save() {
-    setLoading(true);
+    if (operationInProgress.current || !profile) return;
+    operationInProgress.current = true;
     setError(null);
     try {
-      await updateProfile({ username, displayName, bio, isPrivate });
+      let avatarPath: string | undefined;
+      if (avatar) {
+        setProgress('uploading');
+        const path = `${profile.id}/${randomUUID()}.jpg`;
+        await uploadPhoto('avatars', path, avatar.uri);
+        avatarPath = path;
+      }
+      setProgress('saving');
+      await updateProfile({ username, displayName, bio, isPrivate, avatarPath });
       router.back();
     } catch (caught) {
       setError(getErrorMessage(caught));
     } finally {
-      setLoading(false);
+      operationInProgress.current = false;
+      setProgress('idle');
+    }
+  }
+
+  async function chooseAvatar() {
+    if (operationInProgress.current) return;
+    operationInProgress.current = true;
+    setProgress('preparing');
+    setError(null);
+    try {
+      const photo = await pickPhoto({ maxDimension: 768, quality: 0.8 });
+      if (photo) setAvatar(photo);
+    } catch {
+      setError('No pudimos preparar esa foto. Prueba con otra imagen.');
+    } finally {
+      operationInProgress.current = false;
+      setProgress('idle');
     }
   }
 
   async function exit() {
-    setLoading(true);
+    if (operationInProgress.current) return;
+    operationInProgress.current = true;
+    setProgress('signing-out');
     try {
       await signOut();
     } finally {
-      setLoading(false);
+      operationInProgress.current = false;
+      setProgress('idle');
     }
   }
 
@@ -59,8 +95,13 @@ export default function EditProfileScreen() {
         <View style={styles.iconButton} />
       </View>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <Pressable accessibilityRole="button" accessibilityLabel="Cambiar foto de perfil" disabled={loading} onPress={() => void chooseAvatar()} style={{alignItems:'center',gap:10,padding:8}}>
+          <Avatar uri={avatar?.uri ?? profile?.avatarUrl ?? null} size={92} accessibilityLabel="Tu foto de perfil" />
+          <Text style={{color:colors.deepBlue,fontFamily:'Inter_600SemiBold'}}>
+            {progress === 'preparing' ? 'Preparando foto…' : avatar ? 'Foto lista para guardar' : 'Cambiar foto'}
+          </Text>
+        </Pressable>
         {error ? <FormMessage tone="error">{error}</FormMessage> : null}
-        {isDemo ? <FormMessage tone="success">El modo demo es de solo lectura. Conecta Supabase para guardar cambios.</FormMessage> : null}
         <FormField label="Nombre" value={displayName} onChangeText={setDisplayName} maxLength={50} />
         <FormField label="Usuario" value={username} onChangeText={setUsername} autoCapitalize="none" autoCorrect={false} maxLength={24} hint="Minúsculas, números y guion bajo." />
         <FormField label="Biografía" value={bio} onChangeText={setBio} multiline maxLength={160} hint={`${bio.length}/160`} />
@@ -72,13 +113,18 @@ export default function EditProfileScreen() {
           </View>
           <Switch value={isPrivate} onValueChange={setIsPrivate} trackColor={{ false: colors.hairline, true: colors.seaGlass }} thumbColor={colors.white} accessibilityLabel="Cuenta privada" />
         </View>
-        <PrimaryButton label="Guardar cambios" loading={loading} disabled={!valid || isDemo} onPress={() => void save()} />
-        {!isDemo ? (
+        <PrimaryButton
+          label={progress === 'uploading' ? 'Subiendo foto…' : progress === 'saving' ? 'Guardando perfil…' : 'Guardar cambios'}
+          loading={progress === 'uploading' || progress === 'saving'}
+          disabled={!valid || loading}
+          onPress={() => void save()}
+        />
+        {(
           <Pressable accessibilityRole="button" disabled={loading} onPress={() => void exit()} style={({ pressed }) => [styles.signOut, pressed && styles.pressed]}>
             <Feather name="log-out" size={17} color={colors.danger} />
             <Text style={styles.signOutText}>Cerrar sesión</Text>
           </Pressable>
-        ) : null}
+        )}
       </ScrollView>
     </SafeAreaView>
   );

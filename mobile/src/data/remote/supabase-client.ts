@@ -1,10 +1,10 @@
 import 'react-native-url-polyfill/auto';
-import 'expo-sqlite/localStorage/install';
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { AppState, Platform } from 'react-native';
 
 import { appEnvironment, AppEnvironment } from '@/core/config/env';
+import { authStorage } from '@/data/local/auth-storage';
 
 import { Database } from './database.types';
 
@@ -12,6 +12,9 @@ export type MareaSupabaseClient = SupabaseClient<Database>;
 
 let singleton: MareaSupabaseClient | null | undefined;
 let refreshListenerInstalled = false;
+const webGlobals = globalThis as typeof globalThis & {
+  __mareaSupabaseClient?: MareaSupabaseClient;
+};
 
 function installRefreshLifecycle(client: MareaSupabaseClient): void {
   if (refreshListenerInstalled || Platform.OS === 'web') return;
@@ -32,7 +35,8 @@ export function createSupabaseClient(environment: Extract<AppEnvironment, { mode
     environment.supabasePublishableKey,
     {
       auth: {
-        storage: localStorage,
+        flowType: 'pkce',
+        storage: authStorage,
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false,
@@ -47,8 +51,11 @@ export function createSupabaseClient(environment: Extract<AppEnvironment, { mode
 export function getSupabaseClient(
   environment: AppEnvironment = appEnvironment,
 ): MareaSupabaseClient | null {
-  if (environment.mode === 'demo') return null;
+  if (environment.mode !== 'remote') return null;
+  if (Platform.OS === 'web') {
+    webGlobals.__mareaSupabaseClient ??= createSupabaseClient(environment);
+    return webGlobals.__mareaSupabaseClient;
+  }
   singleton ??= createSupabaseClient(environment);
   return singleton;
 }
-

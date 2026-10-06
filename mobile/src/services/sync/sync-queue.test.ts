@@ -9,6 +9,26 @@ import {
 const now = new Date('2026-10-04T12:00:00.000Z');
 
 describe('SyncQueue', () => {
+  it('does not overtake a retrying like with a later unlike', async () => {
+    const queue = new SyncQueue(new MemorySyncOperationStore(), () => now);
+    await queue.enqueue({ id: 'like', type: 'set_post_like', payload: { liked: true } });
+    await queue.enqueue({ id: 'unlike', type: 'set_post_like', payload: { liked: false } });
+    expect((await queue.leaseNext())?.id).toBe('like');
+    await queue.fail('like', new Error('offline'));
+    expect(await queue.leaseNext()).toBeNull();
+  });
+
+  it('retains permanent failures but allows unrelated work to continue', async () => {
+    const store = new MemorySyncOperationStore();
+    const queue = new SyncQueue(store, () => now);
+    await queue.enqueue({ id: 'denied', type: 'create_comment', payload: {} });
+    await queue.enqueue({ id: 'allowed', type: 'create_comment', payload: {} });
+    await queue.leaseNext();
+    await queue.fail('denied', Object.assign(new Error('forbidden'), { permanent: true }));
+    expect((await queue.leaseNext())?.id).toBe('allowed');
+    expect(store.values().find(op => op.id === 'denied')?.nextAttemptAt).toMatch(/^9999/);
+  });
+
   it('leases persisted operations in FIFO order and ignores duplicate ids', async () => {
     const store = new MemorySyncOperationStore();
     const queue = new SyncQueue(store, () => now);

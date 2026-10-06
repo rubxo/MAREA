@@ -1,5 +1,6 @@
 import type { LocalDatabase } from '@/data/local/database';
 import type { SyncOperation, SyncOperationType } from '@/domain/models/sync';
+import { Platform } from 'react-native';
 
 export type NewSyncOperation = Readonly<{
   id: string;
@@ -61,7 +62,8 @@ export class SyncQueue {
   async fail(id: string, error: unknown): Promise<void> {
     const attempts = this.leasedAttempts.get(id) ?? 1;
     this.leasedAttempts.delete(id);
-    const nextAttemptAt = new Date(this.now().getTime() + computeBackoffMs(attempts)).toISOString();
+    const permanent = typeof error === 'object' && error !== null && 'permanent' in error && error.permanent === true;
+    const nextAttemptAt = permanent ? '9999-12-31T00:00:00.000Z' : new Date(this.now().getTime() + computeBackoffMs(attempts)).toISOString();
     const message = error instanceof Error ? error.message : String(error);
     await this.store.markFailed(id, nextAttemptAt, message.slice(0, 500));
   }
@@ -109,6 +111,27 @@ export class SqliteSyncOperationStore implements SyncOperationStore {
   }
 
   async leaseNext(now: string, leaseExpiresAt: string): Promise<SyncOperation | null> {
+    if (Platform.OS === 'web') {
+      await this.database.runAsync(
+        `UPDATE sync_operations SET state = 'pending', lease_expires_at = NULL
+         WHERE state = 'processing' AND lease_expires_at <= ?`,
+        now,
+      );
+      const row = await this.database.getFirstAsync<SyncOperationRow>(
+        `SELECT * FROM sync_operations
+         WHERE next_attempt_at NOT LIKE '9999%'
+         ORDER BY rowid ASC LIMIT 1`,
+      );
+      if (!row || row.state === 'processing' || row.next_attempt_at > now) return null;
+      await this.database.runAsync(
+        `UPDATE sync_operations
+         SET state = 'processing', attempts = attempts + 1, lease_expires_at = ?, last_error = NULL
+         WHERE id = ?`,
+        leaseExpiresAt,
+        row.id,
+      );
+      return mapRow({ ...row, state: 'processing', attempts: row.attempts + 1, lease_expires_at: leaseExpiresAt });
+    }
     let leased: SyncOperation | null = null;
     await this.database.withExclusiveTransactionAsync(async (transaction) => {
       await transaction.runAsync(
@@ -118,11 +141,10 @@ export class SqliteSyncOperationStore implements SyncOperationStore {
       );
       const row = await transaction.getFirstAsync<SyncOperationRow>(
         `SELECT * FROM sync_operations
-         WHERE state IN ('pending', 'failed') AND next_attempt_at <= ?
-         ORDER BY created_at ASC, id ASC LIMIT 1`,
-        now,
+         WHERE next_attempt_at NOT LIKE '9999%'
+         ORDER BY rowid ASC LIMIT 1`,
       );
-      if (!row) return;
+      if (!row || row.state === 'processing' || row.next_attempt_at > now) return;
       await transaction.runAsync(
         `UPDATE sync_operations
          SET state = 'processing', attempts = attempts + 1, lease_expires_at = ?, last_error = NULL
@@ -159,7 +181,8 @@ export class MemorySyncOperationStore implements SyncOperationStore {
     for (const [id, operation] of this.operations) {
       const leaseExpired = operation.state === 'processing' && operation.leaseExpiresAt !== null
         && operation.leaseExpiresAt <= now;
-      if ((operation.state === 'processing' && !leaseExpired) || operation.nextAttemptAt > now) continue;
+      if (operation.nextAttemptAt.startsWith('9999')) continue;
+      if ((operation.state === 'processing' && !leaseExpired) || operation.nextAttemptAt > now) return null;
       const leased = { ...operation, state: 'processing' as const, attempts: operation.attempts + 1, leaseExpiresAt };
       this.operations.set(id, leased);
       return leased;

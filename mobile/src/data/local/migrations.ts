@@ -3,7 +3,7 @@ import { INITIAL_SCHEMA_SQL } from './schema';
 export interface SqlExecutor {
   getFirstAsync<T>(sql: string): Promise<T | null>;
   execAsync(sql: string): Promise<void>;
-  withExclusiveTransactionAsync(task: () => Promise<void>): Promise<void>;
+  withExclusiveTransactionAsync(task: (transaction: Pick<SqlExecutor, 'execAsync'>) => Promise<void>): Promise<void>;
 }
 
 export type Migration = Readonly<{ version: number; sql: string }>;
@@ -31,10 +31,10 @@ export async function migrateDatabase(database: SqlExecutor): Promise<void> {
   );
   if (pending.length === 0) return;
 
-  await database.withExclusiveTransactionAsync(async () => {
+  await database.withExclusiveTransactionAsync(async (transaction) => {
     for (const migration of pending) {
-      await database.execAsync(migration.sql);
-      await database.execAsync(`PRAGMA user_version = ${migration.version}`);
+      await transaction.execAsync(migration.sql);
+      await transaction.execAsync(`PRAGMA user_version = ${migration.version}`);
     }
   });
 }

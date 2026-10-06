@@ -27,7 +27,7 @@ describe('SyncManager', () => {
     await queue.enqueue({ id: '1', type: 'follow', payload: {} });
     const manager = new SyncManager(queue, { execute: async () => { throw new Error('offline'); } });
 
-    await manager.requestRun();
+    await expect(manager.requestRun()).rejects.toThrow('offline');
     expect(store.values()[0]).toMatchObject({ state: 'failed', attempts: 1 });
   });
 });

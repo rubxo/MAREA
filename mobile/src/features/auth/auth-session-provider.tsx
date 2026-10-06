@@ -78,7 +78,7 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
 
   const signIn = useCallback(
     async (email: string, password: string) => {
-      if (!repository) throw new AppError('AUTH_REQUIRED', 'El modo demo no requiere ingreso.');
+      if (!repository) throw new AppError('AUTH_REQUIRED', 'Configura Supabase en mobile/.env.');
       const session = await repository.signIn(email, password);
       setState(resolveInitialAuthState(appEnvironment, session));
     },
@@ -87,7 +87,7 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
 
   const signUp = useCallback(
     async (input: SignUpInput) => {
-      if (!repository) throw new AppError('AUTH_REQUIRED', 'El modo demo no requiere registro.');
+      if (!repository) throw new AppError('AUTH_REQUIRED', 'Configura Supabase en mobile/.env.');
       const result = await repository.signUp(input);
       if (result.session) setState(resolveInitialAuthState(appEnvironment, result.session));
       return result;

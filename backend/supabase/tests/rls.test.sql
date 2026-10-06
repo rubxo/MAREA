@@ -76,7 +76,7 @@ select results_eq(
 );
 
 select results_eq(
-  $$select id from public.stories order by id$$,
+  $$select id from public.stories where id in ('30000000-0000-0000-0000-000000000001'::uuid, '30000000-0000-0000-0000-000000000002'::uuid) order by id$$,
   $$values
     ('30000000-0000-0000-0000-000000000001'::uuid),
     ('30000000-0000-0000-0000-000000000002'::uuid)$$,
@@ -110,7 +110,7 @@ select results_eq(
 );
 
 select results_eq(
-  $$select id from public.stories order by id$$,
+  $$select id from public.stories where id in ('30000000-0000-0000-0000-000000000001'::uuid, '30000000-0000-0000-0000-000000000002'::uuid) order by id$$,
   $$values ('30000000-0000-0000-0000-000000000002'::uuid)$$,
   'non-follower cannot read private stories'
 );

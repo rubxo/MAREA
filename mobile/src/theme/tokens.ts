@@ -1,14 +1,14 @@
 export const colors = {
-  ink: '#121515',
-  paper: '#F6F2EA',
-  coral: '#FF604A',
+  ink: '#14293D',
+  paper: '#F4F7FA',
+  coral: '#CE3653',
   seaGlass: '#73BFAE',
   deepBlue: '#2448A8',
   danger: '#C5362F',
   white: '#FFFFFF',
   mutedInk: '#626865',
-  hairline: '#DED9CF',
-  surface: '#FFFDFC',
+  hairline: '#DDE5EC',
+  surface: '#FFFFFF',
   success: '#287A61',
 } as const;
 
