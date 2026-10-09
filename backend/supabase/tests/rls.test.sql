@@ -68,7 +68,12 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
 
 select results_eq(
-  $$select id from public.posts order by id$$,
+  $$select id from public.posts
+    where id in (
+      '20000000-0000-0000-0000-000000000001'::uuid,
+      '20000000-0000-0000-0000-000000000002'::uuid
+    )
+    order by id$$,
   $$values
     ('20000000-0000-0000-0000-000000000001'::uuid),
     ('20000000-0000-0000-0000-000000000002'::uuid)$$,
@@ -84,7 +89,10 @@ select results_eq(
 );
 
 select results_eq(
-  $$select following_id from public.follows order by following_id$$,
+  $$select following_id from public.follows
+    where follower_id = '10000000-0000-0000-0000-000000000001'::uuid
+      and following_id = '10000000-0000-0000-0000-000000000002'::uuid
+    order by following_id$$,
   $$values ('10000000-0000-0000-0000-000000000002'::uuid)$$,
   'follower can read their relationship'
 );
@@ -104,7 +112,12 @@ select results_eq(
 select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000004', true);
 
 select results_eq(
-  $$select id from public.posts order by id$$,
+  $$select id from public.posts
+    where id in (
+      '20000000-0000-0000-0000-000000000001'::uuid,
+      '20000000-0000-0000-0000-000000000002'::uuid
+    )
+    order by id$$,
   $$values ('20000000-0000-0000-0000-000000000002'::uuid)$$,
   'non-follower cannot read private posts'
 );

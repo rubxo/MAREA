@@ -36,6 +36,9 @@ async function subscribe(session, channel) {
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') { clearTimeout(timer); reject(error ?? new Error(status)); }
     });
   });
+  // The local Realtime join acknowledgement can precede registration of the
+  // postgres_changes replication filter by a fraction of a second.
+  await new Promise(resolve => setTimeout(resolve, 500));
 }
 try {
   for (let i = 0; i < 2; i++) {

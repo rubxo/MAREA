@@ -28,7 +28,7 @@ El usuario informó que la foto seguía bloqueada después de pulsar Guardar. La
 
 Las regresiones cubren sesión bloqueada, respuesta tardía, transporte que ignora abort y guardado de avatar junto con los campos del perfil. Esto verifica recuperación del estado de carga, no demuestra todavía que la foto se guarde físicamente en el teléfono del usuario. Ese recorrido continúa pendiente de confirmación.
 
-El smoke tuvo un timeout de `postgres_changes` de 15 segundos en una ejecución; la repetición pasó sin modificar permisos ni aumentar el timeout. Es una incidencia de estabilidad por observar en pruebas prolongadas, no una garantía de entrega infalible. El cliente recarga estado al reconectar: no usa los eventos como única fuente de verdad.
+El 9 de octubre la suite pgTAP se ejecutó con datos reales ya presentes y se aislaron sus consultas a los UUID de fixtures, de modo que las 49 aserciones no dependen de una base vacía. El smoke detectó que el acuse `SUBSCRIBED` del stack local puede llegar una fracción de segundo antes de registrar el filtro `postgres_changes`; el helper espera 500 ms después del acuse y dos ejecuciones integrales consecutivas pasaron los ocho grupos sin ampliar el timeout de eventos. El cliente recarga estado al reconectar: no usa los eventos como única fuente de verdad.
 
 ## Regresión de entrada
 
