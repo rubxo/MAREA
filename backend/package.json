@@ -3,8 +3,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "oauth": "node oauth-relay/server.mjs",
-    "test:oauth": "node --test oauth-relay/server.test.mjs",
     "seed": "node scripts/seed.mjs",
     "test:smoke": "node scripts/smoke.mjs",
     "test:local": "node scripts/local-smoke.mjs"

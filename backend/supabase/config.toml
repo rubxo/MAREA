@@ -72,7 +72,3 @@ secure_password_change = true
 max_frequency = "10s"
 otp_length = 6
 otp_expiry = 3600
-
-[auth.email.template.recovery]
-subject = "Recupera tu cuenta de Marea"
-content_path = "./supabase/templates/recovery.html"

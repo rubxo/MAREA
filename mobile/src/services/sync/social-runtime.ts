@@ -5,7 +5,12 @@ import { getSupabaseClient } from '@/data/remote/supabase-client';
 import { INITIAL_SCHEMA_SQL } from '@/data/local/schema';
 import type { SyncOperationType, SyncOperation } from '@/domain/models/sync';
 import { uploadPhoto } from '@/services/media/upload-photo';
-import { SyncQueue, SqliteSyncOperationStore } from './sync-queue';
+import {
+  LocalStorageSyncOperationStore,
+  MemorySyncOperationStore,
+  SyncQueue,
+  SqliteSyncOperationStore,
+} from './sync-queue';
 import { SyncManager } from './sync-manager';
 
 export type RuntimeSnapshot = { pending: number; failed: number; revision: number; error: string | null };
@@ -24,18 +29,32 @@ export function getSocialRuntime(userId: string): Promise<SocialRuntime> {
 export class SocialRuntime {
   readonly queue: SyncQueue;
   private readonly manager: SyncManager;
+  private readonly browserCache = new Map<string, unknown>();
   private listeners = new Set<() => void>();
   snapshot: RuntimeSnapshot = { pending: 0, failed: 0, revision: 0, error: null };
-  private constructor(readonly userId: string, private readonly db: SQLiteDatabase) {
-    this.queue = new SyncQueue(new SqliteSyncOperationStore(db));
+  private constructor(
+    readonly userId: string,
+    private readonly db: SQLiteDatabase | null,
+    private readonly browserStore: LocalStorageSyncOperationStore | MemorySyncOperationStore | null,
+  ) {
+    this.queue = new SyncQueue(browserStore ?? new SqliteSyncOperationStore(db!));
     this.manager = new SyncManager(this.queue, { execute: (operation) => this.execute(operation) });
   }
   static async open(userId: string): Promise<SocialRuntime> {
-    const db = await openDatabaseAsync(Platform.OS === 'web' ? ':memory:' : 'marea-user-' + userId + '.db');
+    if (Platform.OS === 'web') {
+      const storage = typeof globalThis.localStorage === 'undefined' ? null : globalThis.localStorage;
+      const store = storage
+        ? new LocalStorageSyncOperationStore(storage, `marea:user:${userId}:operations`)
+        : new MemorySyncOperationStore();
+      const runtime = new SocialRuntime(userId, null, store);
+      await runtime.refresh();
+      return runtime;
+    }
+    const db = await openDatabaseAsync('marea-user-' + userId + '.db');
     await db.execAsync('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;');
     await db.execAsync(INITIAL_SCHEMA_SQL);
     await db.execAsync('CREATE TABLE IF NOT EXISTS snapshots (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)');
-    const runtime = new SocialRuntime(userId, db);
+    const runtime = new SocialRuntime(userId, db, null);
     await runtime.refresh();
     return runtime;
   }
@@ -44,20 +63,41 @@ export class SocialRuntime {
     return () => this.listeners.delete(listener);
   };
   private async refresh(): Promise<void> {
-    const counts = await this.db.getFirstAsync<{ pending: number; failed: number }>(
-      "SELECT count(*) as pending, coalesce(sum(CASE WHEN next_attempt_at LIKE '9999%' THEN 1 ELSE 0 END),0) as failed FROM sync_operations");
+    const counts = this.browserStore
+      ? this.browserStore.values().reduce((result, operation) => ({
+        pending: result.pending + 1,
+        failed: result.failed + (operation.nextAttemptAt.startsWith('9999') ? 1 : 0),
+      }), { pending: 0, failed: 0 })
+      : await this.db!.getFirstAsync<{ pending: number; failed: number }>(
+        "SELECT count(*) as pending, coalesce(sum(CASE WHEN next_attempt_at LIKE '9999%' THEN 1 ELSE 0 END),0) as failed FROM sync_operations");
     this.snapshot = { ...this.snapshot, pending: counts?.pending ?? 0, failed: counts?.failed ?? 0, revision: this.snapshot.revision + 1 };
     this.listeners.forEach((listener) => listener());
   }
   async readCache<T>(key: string): Promise<T | null> {
-    const row = await this.db.getFirstAsync<{ value: string }>('SELECT value FROM snapshots WHERE key=?', key);
+    if (this.browserStore) {
+      if (this.browserCache.has(key)) return this.browserCache.get(key) as T;
+      if (typeof globalThis.localStorage === 'undefined') return null;
+      try {
+        const value = globalThis.localStorage.getItem(`marea:user:${this.userId}:snapshot:${key}`);
+        return value === null ? null : JSON.parse(value) as T;
+      } catch { return null; }
+    }
+    const row = await this.db!.getFirstAsync<{ value: string }>('SELECT value FROM snapshots WHERE key=?', key);
     return row ? JSON.parse(row.value) as T : null;
   }
   async writeCache(key: string, value: unknown): Promise<void> {
-    await this.db.runAsync('INSERT INTO snapshots(key,value,updated_at) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at',
+    if (this.browserStore) {
+      this.browserCache.set(key, value);
+      if (typeof globalThis.localStorage !== 'undefined') {
+        try { globalThis.localStorage.setItem(`marea:user:${this.userId}:snapshot:${key}`, JSON.stringify(value)); }
+        catch { /* The in-memory copy remains available if browser quota is exhausted. */ }
+      }
+      return;
+    }
+    await this.db!.runAsync('INSERT INTO snapshots(key,value,updated_at) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at',
       key, JSON.stringify(value), new Date().toISOString());
     // Bounded structured cache; the operation log is never evicted.
-    await this.db.runAsync('DELETE FROM snapshots WHERE key IN (SELECT key FROM snapshots ORDER BY updated_at DESC LIMIT -1 OFFSET 250)');
+    await this.db!.runAsync('DELETE FROM snapshots WHERE key IN (SELECT key FROM snapshots ORDER BY updated_at DESC LIMIT -1 OFFSET 250)');
   }
   async enqueue(type: SyncOperationType, payload: Readonly<Record<string, unknown>>, id = randomUUID()): Promise<string> {
     await this.queue.enqueue({ id, type, payload });
@@ -65,7 +105,8 @@ export class SocialRuntime {
     return id;
   }
   async pendingOperations(): Promise<SyncOperation[]> {
-    const rows = await this.db.getAllAsync<{id:string;type:SyncOperationType;payload:string;state:SyncOperation['state'];attempts:number;created_at:string;next_attempt_at:string;lease_expires_at:string|null;last_error:string|null}>('SELECT * FROM sync_operations ORDER BY rowid');
+    if (this.browserStore) return this.browserStore.values();
+    const rows = await this.db!.getAllAsync<{id:string;type:SyncOperationType;payload:string;state:SyncOperation['state'];attempts:number;created_at:string;next_attempt_at:string;lease_expires_at:string|null;last_error:string|null}>('SELECT * FROM sync_operations ORDER BY rowid');
     return rows.map(row => ({id:row.id,type:row.type,payload:JSON.parse(row.payload) as Record<string,unknown>,state:row.state,attempts:row.attempts,createdAt:row.created_at,nextAttemptAt:row.next_attempt_at,leaseExpiresAt:row.lease_expires_at,lastError:row.last_error}));
   }
   async sync(): Promise<void> {
@@ -74,7 +115,8 @@ export class SocialRuntime {
     await this.refresh();
   }
   async retryFailed(): Promise<void> {
-    await this.db.runAsync("UPDATE sync_operations SET state='pending',next_attempt_at=?,last_error=NULL WHERE state='failed'", new Date().toISOString());
+    if (this.browserStore) this.browserStore.retryFailed(new Date().toISOString());
+    else await this.db!.runAsync("UPDATE sync_operations SET state='pending',next_attempt_at=?,last_error=NULL WHERE state='failed'", new Date().toISOString());
     await this.sync();
   }
   private async execute(operation: SyncOperation): Promise<void> {

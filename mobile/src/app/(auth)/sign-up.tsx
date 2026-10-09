@@ -6,7 +6,6 @@ import { AuthScaffold, FormField, FormMessage, PrimaryButton } from '@/features/
 import { useAuthSession } from '@/features/auth/auth-session-provider';
 import { getErrorMessage } from '@/features/auth/error-message';
 import { colors, spacing } from '@/theme/tokens';
-import { GoogleButton } from '@/features/auth/GoogleButton';
 
 const usernamePattern = /^[a-z0-9_]{3,24}$/;
 
@@ -56,7 +55,6 @@ export default function SignUpScreen() {
       eyebrow="Crea tu espacio"
       title="Tu primera página."
       description="Empieza con lo esencial. Podrás ajustar tu biografía y privacidad desde tu perfil.">
-      <GoogleButton />
       {error ? <FormMessage tone="error">{error}</FormMessage> : null}
       {notice ? <FormMessage tone="success">{notice}</FormMessage> : null}
       <FormField label="Nombre" value={displayName} onChangeText={setDisplayName} placeholder="Luna Márquez" autoComplete="name" />

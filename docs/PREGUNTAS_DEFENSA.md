@@ -50,29 +50,29 @@
 
 **Dónde verlo en nuestro código:** `mobile/.env.example`; `backend/.env.example`.
 
-## 9. ¿Cómo funciona Google en Expo Go?
+## 9. ¿Por qué el registro entra sin confirmar correo?
 
-**Respuesta excelente:** Usa navegador, Supabase y PKCE con un retorno HTTP separado. El usuario vuelve a la app y esta intercambia el código; no depende del SDK nativo de Google.
+**Respuesta excelente:** Supabase tiene desactivada la confirmación para este proyecto académico. `signUp` devuelve una sesión válida y el trigger crea el perfil. La autorización posterior sigue dependiendo del JWT y RLS.
 
-**Dónde verlo en nuestro código:** `mobile/src/features/auth/google-login.ts`; `docs/GOOGLE.md`.
+**Dónde verlo en nuestro código:** `backend/supabase/config.toml`; `mobile/src/data/repositories/auth-repository.ts`.
 
-## 10. ¿Qué evita PKCE?
+## 10. ¿Cómo se relacionan Auth y profiles?
 
-**Respuesta excelente:** Un código interceptado no basta para obtener la sesión: hace falta el verificador creado por el cliente que inició el acceso.
+**Respuesta excelente:** Auth guarda la identidad y credenciales; `profiles` guarda nombre, usuario, biografía y privacidad. Ambos comparten UUID, pero RLS usa `auth.uid()` como identidad confiable.
 
-**Dónde verlo en nuestro código:** `mobile/src/data/remote/supabase-client.ts`.
+**Dónde verlo en nuestro código:** `backend/supabase/migrations/0004_auth_profile_trigger.sql`.
 
-## 11. ¿El relay de Google guarda contraseñas?
+## 11. ¿Por qué no existe una service_role en Expo?
 
-**Respuesta excelente:** No. Guarda temporalmente un código, separa secretos de lectura y escritura y elimina flujos expirados. Requiere HTTPS en despliegue.
+**Respuesta excelente:** Esa clave omite RLS y daría privilegios administrativos a cualquier usuario que extraiga el bundle. El móvil usa únicamente la clave publishable y el JWT de la sesión.
 
-**Dónde verlo en nuestro código:** `backend/oauth-relay/server.mjs`.
+**Dónde verlo en nuestro código:** `mobile/.env.example`; `backend/.env.example`.
 
-## 12. ¿Cómo se recupera la contraseña?
+## 12. ¿Por qué no se incluyó recuperación de contraseña?
 
-**Respuesta excelente:** Se solicita un código por correo, se verifica como recovery y se actualiza la contraseña con la sesión autorizada. El SMTP y la plantilla deben configurarse.
+**Respuesta excelente:** Supabase alojado necesita un SMTP confiable para entregar ese flujo. Se retiró de la interfaz para no presentar una función que no está operativa; el alcance entregado usa registro e inicio de sesión directos.
 
-**Dónde verlo en nuestro código:** `mobile/src/app/recovery.tsx`; `backend/supabase/templates/recovery.html`.
+**Dónde verlo en nuestro código:** `mobile/src/app/(auth)/index.tsx`; `backend/supabase/config.toml`.
 
 ## 13. ¿Cómo se construye el feed?
 
@@ -292,7 +292,7 @@
 
 ## 49. ¿Qué pruebas no demuestran los tests unitarios?
 
-**Respuesta excelente:** No demuestran fluidez física, permisos del teléfono ni login real de Google. Esas comprobaciones necesitan dispositivo y configuración del proveedor.
+**Respuesta excelente:** No demuestran fluidez física, permisos del teléfono ni comportamiento exacto en todos los modelos. Esas comprobaciones necesitan un dispositivo real.
 
 **Dónde verlo en nuestro código:** `docs/QA.md`.
 

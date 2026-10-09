@@ -19,7 +19,6 @@ npx supabase@2.119.0 --workdir backend status
 En `mobile/.env` coloca:
 - `EXPO_PUBLIC_SUPABASE_URL`: en teléfono, `http://IP_LAN_DE_TU_PC:55321`; **localhost en el teléfono no apunta al PC**. En Supabase alojado, la URL HTTPS del proyecto.
 - `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: clave publishable o anon que muestra Supabase. Nunca service_role.
-- `EXPO_PUBLIC_OAUTH_RELAY_URL`: solo para Google, ver [configuración](docs/GOOGLE.md).
 
 PC y teléfono deben compartir Wi-Fi; habilita acceso LAN a puertos 8081 y 55321. Abre:
 
@@ -28,7 +27,7 @@ cd mobile
 npx expo start --clear
 ```
 
-Escanea el QR con Expo Go. Crea tu propia cuenta. En local la confirmación de correo está desactivada; en un proyecto alojado debes confirmar por correo si está habilitada. El frontend muestra estados vacíos reales hasta que publiques/sigas cuentas. El feed incluye tus fotos y las de quienes sigues; Explorar permite descubrir publicaciones visibles y buscar usuarios.
+Escanea el QR con Expo Go. Crea tu propia cuenta. MAREA Cloud y el backend local tienen confirmación de correo desactivada, por lo que la sesión comienza al terminar el registro. El frontend muestra estados vacíos reales hasta que publiques/sigas cuentas. El feed incluye tus fotos y las de quienes sigues; Explorar permite descubrir publicaciones visibles y buscar usuarios.
 
 El backend local queda en Docker aunque cierres Metro. Studio: `http://localhost:55323`; buzón local de pruebas: `http://localhost:55324`. No ejecutes `db reset` sobre datos que quieras conservar. Para apagar conservando datos: `npx supabase@2.119.0 --workdir backend stop`.
 
@@ -42,7 +41,7 @@ npx supabase@2.119.0 --workdir backend link --project-ref TU_PROJECT_REF
 npx supabase@2.119.0 --workdir backend db push
 ```
 
-En Auth > Email Templates > Reset Password copia `backend/supabase/templates/recovery.html`: el flujo de recuperación usa un código OTP, compatible con Expo Go. Configura SMTP para entrega real. Activa Google según [GOOGLE.md](docs/GOOGLE.md). Desactiva canales Realtime públicos (usa canales privados para typing). Las políticas SQL protegen conversaciones y contenido privado.
+La confirmación de correo está desactivada para que el registro inicie sesión inmediatamente. Desactiva canales Realtime públicos (usa canales privados para typing). Las políticas SQL protegen conversaciones y contenido privado.
 
 ## Recorrido de prueba
 
@@ -63,15 +62,12 @@ npm test -- --runInBand
 npm run doctor
 npm run backend:test
 npm --prefix backend run test:local
-npm --prefix backend run test:oauth
 cd mobile && npx expo export --platform android
 ```
 
 La prueba local crea dos usuarios temporales, verifica Auth, Storage, PostgreSQL y WebSockets y elimina únicamente sus propios datos. El seed opcional se ejecuta explícitamente siguiendo [backend/scripts/README.md](backend/scripts/README.md). No hay cuentas preconfiguradas en el cliente ni carga de fixtures por defecto.
 
-## Google y límites de verificación
-
-Google requiere un proyecto OAuth y activación del proveedor por su propietario. Se implementó un retorno web con código PKCE y servicio separado, sin librerías nativas personalizadas. Hay pruebas de aislamiento/caducidad del retorno; no se ha validado un login real de Google sin esas credenciales. En Expo Go se completa el navegador y se vuelve a la app.
+## Límites de verificación
 
 Las pruebas automatizadas y la exportación Android no certifican 60 FPS ni funcionamiento físico en tu modelo de teléfono. Revisa [QA.md](docs/QA.md). Las imágenes ya descargadas pueden seguir visibles offline: ninguna app puede revocar remotamente una copia en un dispositivo desconectado; nuevas lecturas del servidor sí aplican RLS. No hay push remoto ni sincronización garantizada con la app terminada.
 
@@ -79,6 +75,6 @@ Las pruebas automatizadas y la exportación Android no certifican 60 FPS ni func
 
 - [Arquitectura](docs/ARCHITECTURE.md)
 - [Guía de defensa](docs/DEFENSA.md)
+- [Guion rápido de sustentación](docs/SUSTENTACION_RAPIDA.md)
 - [Preguntas del profesor](docs/PREGUNTAS_DEFENSA.md)
-- [Google](docs/GOOGLE.md)
 - [Validación](docs/QA.md)

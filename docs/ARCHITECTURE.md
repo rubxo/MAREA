@@ -2,7 +2,7 @@
 
 ## Separación
 
-`mobile/src/app` contiene rutas Expo Router; `features` pantallas/hooks por capacidad; `components` UI compartida; `domain` modelos/contratos; `data/repositories` consultas Supabase; `services` caché, fotos y sincronización. `backend/supabase/migrations` define PostgreSQL/RLS/RPC. `backend/oauth-relay` es un servicio Node independiente para el retorno Google. No hay secretos administrativos en componentes.
+`mobile/src/app` contiene rutas Expo Router; `features` pantallas/hooks por capacidad; `components` UI compartida; `domain` modelos/contratos; `data/repositories` consultas Supabase; `services` caché, fotos y sincronización. `backend/supabase/migrations` define PostgreSQL/RLS/RPC. No hay secretos administrativos en componentes.
 
 No agregamos Redux ni un framework de formularios: contexto de sesión, estado local, repositorios y hooks bastan. Las funciones RPC concentran operaciones atómicas que requieren autorización y deduplicación. Los tipos de PostgreSQL se generan con Supabase CLI.
 
@@ -18,7 +18,7 @@ flowchart LR
  READ --> UI
 ```
 
-`getSocialRuntime(userId)` abre una base por usuario y conserva snapshots y operaciones. La cola es la fuente durable de acciones pendientes; los hooks la superponen a las lecturas remotas. Los likes expresan un valor deseado, no un toggle remoto. Comentarios/mensajes mantienen su UUID durante reintentos. `SyncManager.requestRun` comparte una promesa por worker. `SqliteSyncOperationStore.leaseNext` usa una transacción exclusiva; bloquea adelantar operaciones posteriores durante backoff de la primera. Una operación rechazada permanentemente queda visible y requiere reintento explícito.
+`getSocialRuntime(userId)` abre SQLite por usuario en Expo Go y usa `localStorage` en web para evitar los bloqueos exclusivos de OPFS entre pestañas. La cola es la fuente durable de acciones pendientes; los hooks la superponen a las lecturas remotas. Los likes expresan un valor deseado, no un toggle remoto. Comentarios/mensajes mantienen su UUID durante reintentos. `SyncManager.requestRun` comparte una promesa por worker. `SqliteSyncOperationStore.leaseNext` usa una transacción exclusiva; el adaptador web conserva leases e idempotencia en almacenamiento del navegador. Una operación rechazada permanentemente queda visible y requiere reintento explícito.
 
 `SyncStatus` inicia sincronización en red recuperada, al volver a primer plano y cada cinco segundos con la app activa. No se promete ejecución con proceso cerrado. La sesión de Supabase se restaura antes de activar el runtime. El ejecutor comprueba que la identidad sigue coincidiendo con la base.
 
@@ -48,5 +48,4 @@ Username, nombre, biografía y avatar son información pública entre usuarios a
 
 Cada grupo de `(tabs)` tiene Stack propio. Post/profile reutilizan pantallas de features dentro de cada stack y mantienen rutas externas `/post/:id`, `/profile/:username`. `useSocialNavigation` conserva el grupo actual. Expo Go comparte enlaces `exp://.../--/...`; el scheme `marea` se usa en instalación propia.
 
-Auth por contraseña, recuperación OTP y Google PKCE. Google usa retorno web separado para evitar depender de un scheme nativo en Expo Go. Configuración en GOOGLE.md.
-
+Auth usa correo y contraseña mediante Supabase. El trigger de `0004_auth_profile_trigger.sql` crea el perfil con el mismo UUID. En MAREA Cloud la confirmación de registro está desactivada, así que `signUp` entrega una sesión inmediatamente.

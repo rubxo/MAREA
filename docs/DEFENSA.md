@@ -54,9 +54,8 @@ Cada tab mantiene Stack propio: navegar no borra las pantallas de las otras pest
 
 Nunca confundas ocultar botones con autorización. Intenta consultar un post privado desde otra sesión: devuelve vacío o rechazo. Storage también debe negar la URL firmada. El smoke real hace ambas verificaciones. La clave publishable identifica proyecto; JWT identifica usuario; RLS decide acceso; service_role es solo backend.
 
-Google usa PKCE: un código robado no basta, hace falta el verificador almacenado en la app. El relay temporal transporta solo ese código. Configura el proveedor real antes de afirmar que Google funciona en tu proyecto. Recovery utiliza código del correo, no preguntas de seguridad.
+El registro usa Supabase Auth y devuelve sesión inmediatamente porque la confirmación de correo está desactivada en MAREA Cloud. La clave publishable puede estar en la app; no permite saltarse RLS. La versión entregada no promete recuperación por correo porque no hay SMTP configurado.
 
 ## 10. Qué demostrar y qué no afirmar
 
 Muestra creación, privado/solicitud/aceptación, modo avión/cola/reconexión y conversación entre dos cuentas. Ejecuta `npm --prefix backend run test:local`: valida servicios reales, no componentes simulados. Las pruebas unitarias cubren lógica y pgTAP autorización. Exportar Android no mide FPS ni sustituye el teléfono. Lleva dos dispositivos y registra si la experiencia cumple la fluidez esperada.
-

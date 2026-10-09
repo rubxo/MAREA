@@ -15,6 +15,12 @@ export interface SyncOperationStore {
   markFailed(id: string, nextAttemptAt: string, error: string): Promise<void>;
 }
 
+export interface BrowserStorage {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
+
 const BASE_BACKOFF_MS = 1_000;
 const MAX_BACKOFF_MS = 5 * 60_000;
 
@@ -198,4 +204,77 @@ export class MemorySyncOperationStore implements SyncOperationStore {
   }
 
   values(): SyncOperation[] { return [...this.operations.values()]; }
+
+  retryFailed(now: string): void {
+    for (const [id, operation] of this.operations) {
+      if (operation.state === 'failed') this.operations.set(id, {
+        ...operation, state: 'pending', nextAttemptAt: now, leaseExpiresAt: null, lastError: null,
+      });
+    }
+  }
+}
+
+export class LocalStorageSyncOperationStore implements SyncOperationStore {
+  constructor(private readonly storage: BrowserStorage, private readonly key: string) {}
+
+  private read(): SyncOperation[] {
+    try {
+      const value = this.storage.getItem(this.key);
+      if (!value) return [];
+      const parsed: unknown = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed as SyncOperation[] : [];
+    } catch {
+      this.storage.removeItem(this.key);
+      return [];
+    }
+  }
+
+  private write(operations: readonly SyncOperation[]): void {
+    this.storage.setItem(this.key, JSON.stringify(operations));
+  }
+
+  async insert(operation: SyncOperation): Promise<void> {
+    const operations = this.read();
+    if (!operations.some((current) => current.id === operation.id)) this.write([...operations, operation]);
+  }
+
+  async leaseNext(now: string, leaseExpiresAt: string): Promise<SyncOperation | null> {
+    const operations = this.read().map((operation) =>
+      operation.state === 'processing' && operation.leaseExpiresAt !== null && operation.leaseExpiresAt <= now
+        ? { ...operation, state: 'pending' as const, leaseExpiresAt: null }
+        : operation);
+    const index = operations.findIndex((operation) =>
+      !operation.nextAttemptAt.startsWith('9999')
+      && operation.state !== 'processing'
+      && operation.nextAttemptAt <= now);
+    if (index === -1) {
+      this.write(operations);
+      return null;
+    }
+    const leased: SyncOperation = {
+      ...operations[index], state: 'processing', attempts: operations[index].attempts + 1,
+      leaseExpiresAt, lastError: null,
+    };
+    operations[index] = leased;
+    this.write(operations);
+    return leased;
+  }
+
+  async remove(id: string): Promise<void> {
+    this.write(this.read().filter((operation) => operation.id !== id));
+  }
+
+  async markFailed(id: string, nextAttemptAt: string, error: string): Promise<void> {
+    this.write(this.read().map((operation) => operation.id === id ? {
+      ...operation, state: 'failed', nextAttemptAt, leaseExpiresAt: null, lastError: error,
+    } : operation));
+  }
+
+  values(): SyncOperation[] { return this.read(); }
+
+  retryFailed(now: string): void {
+    this.write(this.read().map((operation) => operation.state === 'failed' ? {
+      ...operation, state: 'pending', nextAttemptAt: now, leaseExpiresAt: null, lastError: null,
+    } : operation));
+  }
 }

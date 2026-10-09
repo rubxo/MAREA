@@ -1,6 +1,7 @@
 import type { SyncOperation } from '@/domain/models/sync';
 
 import {
+  LocalStorageSyncOperationStore,
   MemorySyncOperationStore,
   SyncQueue,
   computeBackoffMs,
@@ -67,6 +68,23 @@ describe('SyncQueue', () => {
     clock = new Date(now.getTime() + computeBackoffMs(1));
     expect((await queue.leaseNext())?.id).toBe('comment-1');
     expect(computeBackoffMs(99)).toBe(300_000);
+  });
+});
+
+describe('LocalStorageSyncOperationStore', () => {
+  it('restores queued operations without opening SQLite on web', async () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); },
+      removeItem: (key: string) => { values.delete(key); },
+    };
+    const firstQueue = new SyncQueue(new LocalStorageSyncOperationStore(storage, 'queue'), () => now);
+    await firstQueue.enqueue({ id: 'offline-like', type: 'set_post_like', payload: { liked: true } });
+
+    const restored = new LocalStorageSyncOperationStore(storage, 'queue');
+    expect(restored.values()).toHaveLength(1);
+    expect(restored.values()[0]).toMatchObject({ id: 'offline-like', state: 'pending' });
   });
 });
 

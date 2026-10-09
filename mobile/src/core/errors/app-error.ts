@@ -30,7 +30,7 @@ export function toAppError(error: RemoteErrorLike): AppError {
     return new AppError('CONFLICT', 'Ese nombre de usuario ya está en uso.');
   }
   if (error.status === 422 && normalized.includes('already registered')) {
-    return new AppError('CONFLICT', 'Ese correo ya está registrado. Inicia sesión o recupera tu contraseña.');
+    return new AppError('CONFLICT', 'Ese correo ya está registrado. Inicia sesión con esa cuenta.');
   }
   if (error.status === 422) {
     return new AppError('VALIDATION', 'No pudimos crear la cuenta con esos datos. Revisa el correo, usuario y contraseña.');

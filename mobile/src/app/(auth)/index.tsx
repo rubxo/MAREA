@@ -6,7 +6,6 @@ import { AuthScaffold, FormField, FormMessage, PrimaryButton } from '@/features/
 import { getErrorMessage } from '@/features/auth/error-message';
 import { useAuthSession } from '@/features/auth/auth-session-provider';
 import { colors, spacing } from '@/theme/tokens';
-import { GoogleButton } from '@/features/auth/GoogleButton';
 
 export default function SignInScreen() {
   const { signIn } = useAuthSession();
@@ -32,8 +31,6 @@ export default function SignInScreen() {
       eyebrow="Tu comunidad visual"
       title="Qué bueno verte de nuevo."
       description="Entra y conecta con las miradas que te inspiran.">
-      <GoogleButton />
-      <View style={{flexDirection:'row',alignItems:'center',gap:12}}><View style={{flex:1,height:1,backgroundColor:colors.hairline}}/><Text style={{fontSize:11,color:colors.mutedInk}}>o entra con tu correo</Text><View style={{flex:1,height:1,backgroundColor:colors.hairline}}/></View>
       {error ? <FormMessage tone="error">{error}</FormMessage> : null}
       <FormField
         label="Correo"
@@ -58,7 +55,6 @@ export default function SignInScreen() {
         disabled={!email.trim() || password.length < 8}
         onPress={() => void submit()}
       />
-      <Link href="/recovery" style={{color:colors.deepBlue,textAlign:'center',padding:10,fontSize:12}}>¿Olvidaste tu contraseña?</Link>
       <View style={styles.switchRow}>
         <Text style={styles.switchText}>¿Primera vez aquí?</Text>
         <Link href="/sign-up" asChild>

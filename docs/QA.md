@@ -2,13 +2,12 @@
 
 ## Evidencia automatizada
 
-Comandos reproducibles desde la raíz (la cuenta de Google no se simula):
+Comandos reproducibles desde la raíz:
 
 ```bash
 npm run typecheck
 npm run lint -- --no-cache
 npm test -- --runInBand
-npm --prefix backend run test:oauth
 npm run backend:test
 npm --prefix backend run test:local
 npx supabase@2.119.0 --workdir backend db lint --level warning
@@ -18,7 +17,7 @@ npx expo install --check
 npx expo export --platform android
 ```
 
-Resultados de la base de entrega: 49 aserciones pgTAP de privacidad/chat/stories; relay OAuth con aislamiento y caducidad; DB lint sin errores. Expo Doctor pasó 21/21 y las exportaciones Android (Hermes) y web se generaron correctamente. La regresión del 6 de octubre pasó TypeScript, lint y 72 pruebas de lógica, navegación y adaptadores por plataforma. El smoke incluye ocho grupos, con subida y lectura de avatar autenticadas.
+Resultados de la base de entrega: 49 aserciones pgTAP de privacidad/chat/stories y DB lint sin errores. Expo Doctor pasó 21/21 y las exportaciones Android (Hermes) y web se generaron correctamente. La regresión actual pasó TypeScript, lint y 74 pruebas de lógica, navegación y adaptadores por plataforma. El smoke incluye ocho grupos, con subida y lectura de avatar autenticadas.
 
 ## Despliegue Supabase Cloud (9 de octubre)
 
@@ -40,25 +39,24 @@ El 9 de octubre la suite pgTAP se ejecutó con datos reales ya presentes y se ai
 
 - Apertura sin sesión → login.
 - Sesión restaurada → feed.
-- Ruta protegida sin sesión → login, nunca recuperación.
-- Recuperación explícita → volver al login.
+- Ruta protegida sin sesión → login.
 - Login → feed → cerrar sesión → login.
 
-El fallo corregido era el orden del Stack: `recovery` estaba antes que los grupos de autenticación y producto. Expo Router la elegía como ruta disponible al invalidar la pantalla anterior. Ahora los destinos iniciales son explícitos y recuperación está al final. No se usa una redirección permanente que impida recuperarse por OTP.
+El fallo corregido era tener una ruta pública auxiliar antes que los grupos de autenticación y producto. Ahora los destinos iniciales son explícitos y la versión final solo expone rutas de autenticación funcionales.
 
 Referencia del comportamiento de rutas protegidas: [Expo Router](https://docs.expo.dev/router/advanced/protected/).
 
 ## Revisión visual
 
-El login se inspeccionó en navegador a 390 × 844: hero fotográfico, formulario, Google, mostrar contraseña, recuperación y registro. La vista web es apoyo visual, no sustituye las pruebas nativas. SQLite web requiere WASM y cabeceras de aislamiento en `mobile/metro.config.js`; se evita SSR para esta vista. [Documentación de Expo SQLite](https://docs.expo.dev/versions/latest/sdk/sqlite/).
+El login se inspeccionó en navegador a 390 × 844: hero fotográfico, formulario, mostrar contraseña y registro. La vista web es apoyo visual, no sustituye las pruebas nativas. La cola web usa `localStorage`: evita abrir el worker OPFS de `expo-sqlite`, cuyo acceso exclusivo falla si existe otra pestaña o worker. Expo Go conserva SQLite nativo.
 
 El recorrido web autenticado se validó con una cuenta temporal: login, selector de archivo del PC, publicación optimista, sincronización, persistencia en Supabase y recarga del feed. La consola final quedó sin errores ni advertencias; después se eliminaron la cuenta y sus publicaciones. Web usa `localStorage` para Auth e historias vistas, `expo-image` para caché y una URI de imagen duradera para la cola; Expo Go conserva SQLite y el caché de archivos nativo. Las pruebas de regresión impiden volver a cargar `expo-file-system` desde esas rutas web.
 
 ## Prueba física pendiente
 
-Cerrar Marea dentro de Expo Go y escanear de nuevo el QR **raíz**, no un enlace `/recovery`. Si Metro antiguo sigue abierto, detenerlo y ejecutar `cd mobile && npx expo start --clear`.
+Cerrar Marea dentro de Expo Go y escanear de nuevo el QR raíz. Si Metro antiguo sigue abierto, detenerlo y ejecutar `cd mobile && npx expo start --clear`.
 
-1. Sin sesión, comprobar login; abrir recuperación y volver; registrarse e iniciar sesión.
+1. Sin sesión, comprobar login; registrarse y verificar entrada inmediata.
 2. Publicar una foto real, cambiar avatar y editar perfil.
 3. Con dos cuentas: follow, privado, solicitud, rechazo, nueva solicitud y aceptación.
 4. Comentar/responder, like/unlike y compartir un post autorizado.
@@ -70,8 +68,7 @@ Cerrar Marea dentro de Expo Go y escanear de nuevo el QR **raíz**, no un enlace
 
 ## Condiciones antes de publicar
 
-- Google: requiere credenciales del propietario, proveedor Supabase activado y relay HTTPS. El botón y protocolo están implementados; el consentimiento real no está verificado. Ver `GOOGLE.md`.
-- Correo: configurar SMTP y plantilla OTP en Supabase alojado; verificar entrega real y recuperación completa.
+- Correo: el registro no exige confirmación. Recuperación por correo quedó fuera del alcance porque no hay SMTP configurado.
 - Seguridad: SQLite y caché local no están cifrados por la app; RLS no revoca copias ya descargadas mientras el teléfono está desconectado. URLs firmadas mantienen validez hasta su expiración.
 - Dependencias: npm audit reportó 65 hallazgos transitivos (16 moderados, 49 altos). No se aplicó `audit fix --force`, que puede romper el SDK. Expo Doctor sí pasó 21/21 con todos los parches esperados de SDK 57; la revisión de exposición de transitivas queda pendiente antes de un lanzamiento público.
 - No hay push remoto ni sincronización garantizada con el proceso terminado. El seed es opcional; no hay modo demo ni cuentas ficticias en el cliente.

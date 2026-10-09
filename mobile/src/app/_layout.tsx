@@ -46,8 +46,6 @@ function RootNavigator({ fontsLoaded }: Readonly<{ fontsLoaded: boolean }>) {
           <Stack.Screen name="messages" />
           <Stack.Screen name="story" options={{presentation:'fullScreenModal'}} />
         </Stack.Protected>
-        {/* Recovery stays reachable during OTP session creation, but is never the fallback. */}
-        <Stack.Screen name="recovery" />
       </Stack>
     </>
   );

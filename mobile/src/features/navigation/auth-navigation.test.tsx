@@ -1,5 +1,5 @@
 import { Text } from 'react-native';
-import { act, renderRouter, screen, testRouter } from 'expo-router/testing-library';
+import { act, renderRouter, screen } from 'expo-router/testing-library';
 import RootLayout from '@/app/_layout';
 import AuthLayout from '@/app/(auth)/_layout';
 import { Stack } from 'expo-router';
@@ -28,7 +28,6 @@ function renderApp(initialUrl = '/') {
     '(tabs)/_layout': () => <Stack />,
     '(auth)/index': () => <Text>LOGIN_SCREEN</Text>,
     '(tabs)/index': () => <Text>FEED_SCREEN</Text>,
-    recovery: () => <Text>RECOVERY_SCREEN</Text>,
     'profile/_layout': () => <Stack />,
     'post/_layout': () => <Stack />,
     'messages/_layout': () => <Stack />,
@@ -45,24 +44,14 @@ it('opens the feed when a real session has already been restored', () => {
   mockAuthenticated = true;
   renderApp();
   expect(screen.getByText('FEED_SCREEN')).toBeVisible();
-  expect(screen.queryByText('RECOVERY_SCREEN')).toBeNull();
 });
 
 it('opens login when a signed-out user opens the app', () => {
   renderApp();
   expect(screen.getByText('LOGIN_SCREEN')).toBeVisible();
-  expect(screen.queryByText('RECOVERY_SCREEN')).toBeNull();
 });
-it('redirects a protected entry to login, never recovery', () => {
+it('redirects a protected entry to login', () => {
   renderApp('/messages');
-  expect(screen.getByText('LOGIN_SCREEN')).toBeVisible();
-  expect(screen.queryByText('RECOVERY_SCREEN')).toBeNull();
-});
-it('allows recovery only through navigation and returns to login', () => {
-  renderApp();
-  testRouter.push('/recovery');
-  expect(screen.getByText('RECOVERY_SCREEN')).toBeVisible();
-  testRouter.back();
   expect(screen.getByText('LOGIN_SCREEN')).toBeVisible();
 });
 it('switches login to feed after authentication and back after sign-out', () => {
@@ -71,5 +60,4 @@ it('switches login to feed after authentication and back after sign-out', () => 
   expect(screen.getByText('FEED_SCREEN')).toBeVisible();
   act(() => { mockAuthenticated = false; mockListeners.forEach(listener => listener()); });
   expect(screen.getByText('LOGIN_SCREEN')).toBeVisible();
-  expect(screen.queryByText('RECOVERY_SCREEN')).toBeNull();
 });

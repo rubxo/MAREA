@@ -53,7 +53,7 @@ Para actualizar sin borrar datos utiliza `npm run backend:migrate` desde la raí
 
 Pruebas integradas: `npm --prefix backend run test:local`. Crean usuarios temporales propios, ejercitan Auth/Storage/RPC/WebSockets y limpian sus propios recursos. El seed es opcional y explícito: [instrucciones](scripts/README.md).
 
-Google requiere activar el proveedor y ejecutar un retorno HTTP separado: [configuración](../docs/GOOGLE.md). Para recuperación por código, configura la plantilla `supabase/templates/recovery.html` en Auth; el SMTP real corresponde al despliegue alojado.
+El registro normal de MAREA Cloud no exige confirmación de correo. La versión entregada no expone recuperación por email porque no hay SMTP configurado.
 
 Los RPC públicos son wrappers `security invoker`. La lógica con privilegios elevados permanece en el esquema `private`, fija `search_path = ''`, valida `auth.uid()` y comprueba la autorización del recurso. Cada mutación offline lleva un `operation_id`; un advisory lock serializa reintentos concurrentes y `client_operations` devuelve el resultado ya confirmado.
 
