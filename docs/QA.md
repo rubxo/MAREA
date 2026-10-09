@@ -20,6 +20,10 @@ npx expo export --platform android
 
 Resultados de la base de entrega: 49 aserciones pgTAP de privacidad/chat/stories; relay OAuth con aislamiento y caducidad; DB lint sin errores. Expo Doctor pasó 21/21 y las exportaciones Android (Hermes) y web se generaron correctamente. La regresión del 6 de octubre pasó TypeScript, lint y 72 pruebas de lógica, navegación y adaptadores por plataforma. El smoke incluye ocho grupos, con subida y lectura de avatar autenticadas.
 
+## Despliegue Supabase Cloud (9 de octubre)
+
+Se creó el proyecto alojado independiente `MAREA` en `sa-east-1` (ref. `zdtlzybvmpiiilgimrfy`) y se aplicaron las migraciones `0001`–`0012`; `migration list --linked` confirmó que el historial local y remoto coincide. El smoke remoto pasó sus ocho grupos contra Auth, PostgreSQL, Storage privado y Realtime real, incluyendo mensajes bidireccionales y recibos entre dos sesiones independientes. Después se cargó el seed reproducible para la sustentación: seis usuarios, 40 publicaciones PNG, seis historias, relaciones, solicitudes, comentarios y una conversación. Las claves siguen fuera del repositorio; este registro documenta la verificación realizada, no garantiza que el estado externo no cambie después.
+
 ## Regresión de guardado de perfil (5 de octubre)
 
 El usuario informó que la foto seguía bloqueada después de pulsar Guardar. La corrección previa solo iniciaba el timeout después de `getSession()` y confiaba en que el transporte rechazara al abortar. El guardado posterior del perfil tampoco tenía deadline. La ausencia de peticiones a Storage no basta para atribuir el fallo a la lectura del archivo: también puede estar esperando la sesión.
